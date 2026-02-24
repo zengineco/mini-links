@@ -1,0 +1,1059 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>⛳ Mini Links • Arcade Golf</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0a0e1a;
+  --felt:#0d4a2a;
+  --felt2:#0b3f22;
+  --rail:#3d1f08;
+  --rail2:#5a2e0c;
+  --ink:#e8f4e8;
+  --muted:#6b8f6b;
+  --accent:#aaff44;
+  --accentD:#88cc22;
+  --blue:#44aaff;
+  --red:#ff5544;
+  --gold:#ffcc44;
+  --panel:#111820;
+  --panelB:#1a2330;
+  --border:#1e3a28;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--ink);font-family:'DM Mono',monospace}
+body{display:flex;flex-direction:column;min-height:100vh}
+
+/* Header */
+.header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 20px;
+  background:linear-gradient(90deg,#0f1e0f,#0a1610);
+  border-bottom:1px solid var(--border);
+}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;letter-spacing:-0.5px;color:var(--accent)}
+.logo span{color:var(--muted);font-size:13px;font-family:'DM Mono';font-weight:400;margin-left:8px}
+.header-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+
+/* Main layout */
+.main{flex:1;display:grid;grid-template-columns:1fr 300px;gap:0;overflow:hidden}
+
+/* Game area */
+.game-area{
+  position:relative;
+  display:flex;flex-direction:column;
+  padding:16px;
+  background:radial-gradient(ellipse at 50% 30%, #0d1f0d 0%, var(--bg) 100%);
+}
+#game{
+  width:100%;height:auto;
+  border-radius:8px;
+  border:3px solid var(--rail);
+  box-shadow:0 0 0 6px var(--rail2), 0 20px 60px rgba(0,0,0,.8), inset 0 0 80px rgba(0,0,0,.5);
+  cursor:crosshair;
+  display:block;
+}
+
+/* Sidebar */
+.sidebar{
+  background:var(--panel);
+  border-left:1px solid var(--border);
+  overflow-y:auto;
+  display:flex;flex-direction:column;
+}
+.sblock{padding:16px;border-bottom:1px solid var(--border)}
+.sblock h3{
+  font-family:'Syne',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--muted);margin-bottom:12px;
+}
+
+/* Stats */
+.stat-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+.stat-label{font-size:11px;color:var(--muted);letter-spacing:.5px}
+.stat-val{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--accent)}
+.stat-val.neutral{color:var(--ink)}
+.stat-val.bad{color:var(--red)}
+.stat-val.warn{color:var(--gold)}
+
+/* Hole list */
+.hole-list{display:flex;flex-direction:column;gap:4px}
+.hole-item{
+  display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;
+  cursor:pointer;font-size:12px;transition:background .12s;border:1px solid transparent;
+}
+.hole-item:hover{background:var(--panelB);border-color:var(--border)}
+.hole-item.active{background:#0d2e1a;border-color:#2a6040;color:var(--accent)}
+.hole-item .hi-num{font-family:'Syne',sans-serif;font-weight:800;font-size:13px;color:var(--muted);width:20px}
+.hole-item .hi-name{flex:1}
+.hole-item .hi-par{font-size:10px;color:var(--muted)}
+.hole-item .hi-score{font-family:'Syne',sans-serif;font-size:13px;font-weight:800}
+.score-eagle{color:#44aaff}
+.score-birdie{color:#aaff44}
+.score-par{color:var(--ink)}
+.score-bogey{color:var(--gold)}
+.score-double{color:var(--red)}
+
+/* Customizer */
+.emoji-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:12px}
+.emoji-btn{
+  aspect-ratio:1;border:2px solid var(--border);border-radius:6px;
+  background:var(--panelB);font-size:18px;cursor:pointer;transition:all .1s;
+  display:flex;align-items:center;justify-content:center;
+}
+.emoji-btn:hover{border-color:var(--muted);transform:scale(1.08)}
+.emoji-btn.selected{border-color:var(--accent);background:#0d2e10}
+
+.theme-grid{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.theme-btn{
+  padding:5px 10px;border-radius:20px;border:1px solid var(--border);
+  font-size:11px;cursor:pointer;background:var(--panelB);color:var(--muted);transition:all .1s;
+}
+.theme-btn:hover{border-color:var(--muted);color:var(--ink)}
+.theme-btn.selected{border-color:var(--accent);color:var(--accent);background:#0d2e10}
+
+/* Controls */
+.btn{
+  padding:9px 16px;border-radius:6px;border:1px solid var(--border);
+  background:var(--panelB);color:var(--ink);font:500 12px 'DM Mono';cursor:pointer;transition:all .12s;
+}
+.btn:hover{border-color:var(--muted);background:#1e2f3e}
+.btn.primary{background:#1a3d10;border-color:#2a6020;color:var(--accent)}
+.btn.primary:hover{background:#224d14;border-color:#3a8030}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Power meter */
+.power-wrap{margin-top:8px}
+.power-label{font-size:10px;color:var(--muted);margin-bottom:4px;letter-spacing:.5px}
+.power-bar{height:6px;background:var(--panelB);border-radius:3px;overflow:hidden;border:1px solid var(--border)}
+.power-fill{height:100%;background:linear-gradient(90deg,var(--accentD),var(--accent),var(--gold),var(--red));border-radius:3px;width:0%;transition:width .05s}
+
+/* Toast */
+.toast{
+  position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-60px);
+  padding:10px 24px;border-radius:8px;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;
+  z-index:999;pointer-events:none;transition:transform .3s cubic-bezier(.34,1.56,.64,1);
+  border:1px solid;
+}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.good{background:#0d3010;border-color:var(--accent);color:var(--accent)}
+.toast.great{background:#0a1830;border-color:var(--blue);color:var(--blue)}
+.toast.warn{background:#2d1f00;border-color:var(--gold);color:var(--gold)}
+
+/* Scorecard footer */
+.scorecard{
+  background:var(--panel);border-top:1px solid var(--border);
+  padding:10px 16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+}
+.sc-label{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+.sc-holes{display:flex;gap:3px}
+.sc-cell{
+  width:28px;height:28px;border:1px solid var(--border);border-radius:4px;
+  display:flex;align-items:center;justify-content:center;font-family:'Syne',sans-serif;font-size:11px;font-weight:800;
+  background:var(--panelB);color:var(--muted);
+}
+.sc-cell.done{color:var(--ink)}
+.sc-cell.active{border-color:var(--accent);color:var(--accent);background:#0d2e10}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+/* THEMES */
+body.theme-desert{--felt:#3d2b0a;--felt2:#4a3410;--rail:#1a0f04;--rail2:#2a1a08;--border:#3a2808}
+body.theme-space{--felt:#05051a;--felt2:#080828;--rail:#0a0a2a;--rail2:#1010408;--border:#1a1a3a}
+body.theme-candy{--felt:#2a0a1a;--felt2:#3a0f22;--rail:#1a0510;--rail2:#2a0818;--border:#3a1030}
+body.theme-ice{--felt:#062030;--felt2:#082838;--rail:#041520;--rail2:#062030;--border:#0d3a50}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">⛳ Mini Links <span>Arcade Golf • Season 1</span></div>
+  <div class="header-right">
+    <button class="btn primary" id="btnNew">New Course</button>
+    <button class="btn" id="btnDaily">Today's Daily</button>
+    <button class="btn" id="btnReset">Reset Ball (R)</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="game-area">
+    <canvas id="game" width="900" height="560"></canvas>
+    <div class="power-wrap">
+      <div class="power-label">POWER</div>
+      <div class="power-bar"><div class="power-fill" id="powerFill"></div></div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <!-- Live stats -->
+    <div class="sblock">
+      <h3>Current Hole</h3>
+      <div class="stat-row"><span class="stat-label">HOLE</span><span class="stat-val neutral" id="sHole">1</span></div>
+      <div class="stat-row"><span class="stat-label">PAR</span><span class="stat-val neutral" id="sPar">3</span></div>
+      <div class="stat-row"><span class="stat-label">STROKES</span><span class="stat-val" id="sStrokes">0</span></div>
+      <div class="stat-row"><span class="stat-label">TOTAL SCORE</span><span class="stat-val neutral" id="sTotal">E</span></div>
+    </div>
+
+    <!-- Hole selection -->
+    <div class="sblock" style="flex:1">
+      <h3>Course — 12 Holes</h3>
+      <div class="hole-list" id="holeList"></div>
+    </div>
+
+    <!-- Customizer -->
+    <div class="sblock">
+      <h3>Your Ball</h3>
+      <div class="emoji-grid" id="emojiGrid"></div>
+      <h3 style="margin-top:8px">Course Theme</h3>
+      <div class="theme-grid" id="themeGrid"></div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="sblock">
+      <div class="btn-row">
+        <button class="btn primary" id="btnNextHole" style="flex:1">Next Hole →</button>
+      </div>
+      <p style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.6">
+        Aim: drag & release from ball<br>
+        Power: drag distance<br>
+        Keys: R=reset, N=next hole
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="scorecard">
+  <span class="sc-label">Scorecard</span>
+  <div class="sc-holes" id="scorecardCells"></div>
+  <span class="sc-label" style="margin-left:8px">Total:</span>
+  <span class="stat-val neutral" id="scTotal" style="font-size:14px">—</span>
+</div>
+
+<div class="toast" id="toast">Hole in One! 🎉</div>
+
+<script>
+// ===================== ENGINE ===================== //
+
+function makeRng(seed){ let x = seed|0 || 1; return ()=>{ x^=x<<13; x^=x>>>17; x^=x<<5; return (x>>>0)/4294967296; }; }
+function dailySeed(){ const d=new Date(); return parseInt(`${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}${String(d.getUTCDate()).padStart(2,'0')}`); }
+
+const V = {
+  add:(a,b)=>({x:a.x+b.x,y:a.y+b.y}),
+  sub:(a,b)=>({x:a.x-b.x,y:a.y-b.y}),
+  mul:(a,s)=>({x:a.x*s,y:a.y*s}),
+  dot:(a,b)=>a.x*b.x+a.y*b.y,
+  len:(a)=>Math.hypot(a.x,a.y),
+  nor:(a)=>{const L=Math.hypot(a.x,a.y)||1; return {x:a.x/L,y:a.y/L}},
+  proj:(a,n)=>{const k=V.dot(a,n); return {x:n.x*k,y:n.y*k}},
+};
+function clamp(v,lo,hi){return Math.max(lo,Math.min(hi,v));}
+function distPointSeg(p,a,b){
+  const ab=V.sub(b,a); const t=clamp(V.dot(V.sub(p,a),ab)/(V.dot(ab,ab)||1),0,1);
+  const c={x:a.x+ab.x*t,y:a.y+ab.y*t}; return {d:Math.hypot(p.x-c.x,p.y-c.y),c,t};
+}
+
+const canvas=document.getElementById('game');
+const ctx=canvas.getContext('2d');
+const W=canvas.width, H=canvas.height;
+const BND={l:48,t:48,r:W-48,b:H-48};
+const POCKET_R=20, BALL_R=10;
+const PHYS={dt:1/120,mu:0.55,stop:5,maxSpeed:950,eWall:0.82,eBumper:1.08,eSpinner:0.98};
+
+let simTime=0, paused=false;
+
+// ===================== STATE ===================== //
+const scorecard=[]; // scores per hole (strokes - par)
+let currentHoleIdx=0;
+let selectedEmoji='⚪';
+let currentTheme='green';
+
+const gameState={
+  phase:'aim', // aim | roll | scored
+  ball:{x:0,y:0,vx:0,vy:0},
+  pocket:{x:0,y:0},
+  bumpers:[],  // {x,y,r,emoji?}
+  spinners:[], // {cx,cy,len,thick,omega,phase0}
+  walls:[],    // {ax,ay,bx,by} static wall segments
+  animals:[],  // {x,y,vx,vy,r,emoji,path:[],pathIdx,speed}
+  portals:[],  // [{x,y,r,pairIdx}] pairs
+  conveyor:null, // {ax,ay,bx,by,strength}
+  par:3,
+  strokes:0,
+  holeName:'',
+};
+
+// ===================== HOLES ===================== //
+const HOLES=[
+  {id:1, name:'Straight Shot',      seed:104857, par:2, type:'simple'},
+  {id:2, name:'Bumper Alley',       seed:220013, par:3, type:'bumpers'},
+  {id:3, name:'Spinning Gate',      seed:330007, par:2, type:'gate'},
+  {id:4, name:'Dogleg Left',        seed:440021, par:3, type:'dogleg'},
+  {id:5, name:'The Windmill',       seed:550099, par:3, type:'windmill'},
+  {id:6, name:'Animal Crossing',    seed:660123, par:3, type:'animals'},
+  {id:7, name:'Portal Jump',        seed:770077, par:3, type:'portals'},
+  {id:8, name:'Foosbar Gauntlet',   seed:880081, par:4, type:'foosbar'},
+  {id:9, name:'Conveyor Chaos',     seed:990311, par:3, type:'conveyor'},
+  {id:10,name:'The Maze',           seed:101013, par:4, type:'maze'},
+  {id:11,name:'Spinner Gauntlet',   seed:111321, par:4, type:'spinners3'},
+  {id:12,name:'Grand Finale',       seed:121001, par:5, type:'finale'},
+];
+
+function generateHole(holeIdx){
+  const h=HOLES[holeIdx]; const rnd=makeRng(h.seed);
+  simTime=0;
+  Object.assign(gameState,{
+    phase:'aim', par:h.par, strokes:0, holeName:h.name,
+    bumpers:[], spinners:[], walls:[], animals:[], portals:[], conveyor:null,
+  });
+  // Ball always bottom-left area, pocket varies
+  gameState.ball={x:BND.l+80, y:BND.b-80, vx:0, vy:0};
+
+  const R=(lo,hi)=>lo+rnd()*(hi-lo);
+  const pocketSide=rnd();
+  if(pocketSide<0.4) gameState.pocket={x:BND.r-80, y:BND.t+80}; // top-right
+  else if(pocketSide<0.7) gameState.pocket={x:BND.r-80, y:H/2+R(-60,60)};
+  else gameState.pocket={x:W/2+R(-80,80), y:BND.t+60};
+
+  const safeDist=90;
+  function safe(x,y){ return Math.hypot(x-gameState.ball.x,y-gameState.ball.y)>safeDist && Math.hypot(x-gameState.pocket.x,y-gameState.pocket.y)>safeDist; }
+
+  function addBumper(n, minR=18, maxR=28, emojiList=null){
+    const emojis=['🌴','🌵','🏔️','⛰️','🪨','🌳'];
+    for(let i=0;i<n;i++){
+      let bx,by,ok=false,tries=0;
+      while(!ok&&tries++<200){bx=BND.l+100+rnd()*(BND.r-BND.l-200); by=BND.t+60+rnd()*(BND.b-BND.t-120); ok=safe(bx,by);}
+      gameState.bumpers.push({x:bx,y:by,r:minR+rnd()*(maxR-minR),emoji:emojiList?emojiList[Math.floor(rnd()*emojiList.length)]:emojis[Math.floor(rnd()*emojis.length)]});
+    }
+  }
+
+  function addSpinner(cx,cy,len,thick,omega,phase0){
+    gameState.spinners.push({cx,cy,len,thick,omega,phase0});
+  }
+
+  function addWallSeg(ax,ay,bx,by){
+    gameState.walls.push({ax,ay,bx,by});
+  }
+
+  function addAnimal(x,y,r,emoji,path,speed){
+    gameState.animals.push({x,y,r,emoji,path,pathIdx:0,speed,t:0});
+  }
+
+  switch(h.type){
+    case 'simple':
+      addBumper(1);
+      break;
+
+    case 'bumpers':
+      addBumper(4);
+      break;
+
+    case 'gate':
+      addSpinner(W/2, H/2, 140, 14, 1.2, rnd()*Math.PI*2);
+      addSpinner(W*0.65, H*0.4, 100, 12, -0.9, rnd()*Math.PI*2);
+      break;
+
+    case 'dogleg': {
+      // L-shaped wall corridor
+      const mx=W/2, my=H/2;
+      addWallSeg(BND.l+120, my-60, mx-20, my-60);
+      addWallSeg(BND.l+120, my+60, mx-20, my+60);
+      addWallSeg(mx-20, my-60, mx-20, my-180);
+      addWallSeg(mx+20, my-60, mx+20, my-180);
+      addWallSeg(mx-20, my-180, BND.r-120, my-180);
+      addWallSeg(mx-20, my-120, BND.r-120, my-120);
+      gameState.pocket={x:BND.r-80, y:my-150};
+      break;
+    }
+
+    case 'windmill': {
+      // 4-arm windmill spinner in center
+      addSpinner(W/2, H/2-30, 180, 16, 0.7, 0);
+      addSpinner(W/2, H/2-30, 180, 12, -0.7, Math.PI/2);
+      addBumper(2);
+      break;
+    }
+
+    case 'animals': {
+      // Moving critters on patrol paths
+      const paths=[
+        [{x:BND.l+160,y:H/2},{x:W/2-40,y:H/2},{x:W/2-40,y:BND.t+100},{x:BND.l+160,y:BND.t+100}],
+        [{x:W/2,y:BND.t+80},{x:BND.r-140,y:BND.t+80},{x:BND.r-140,y:H/2+40},{x:W/2,y:H/2+40}],
+      ];
+      addAnimal(paths[0][0].x,paths[0][0].y,14,'🐐',paths[0],110);
+      addAnimal(paths[1][0].x,paths[1][0].y,16,'🐑',paths[1],90);
+      addBumper(1,14,20,['🌵','🌴']);
+      break;
+    }
+
+    case 'portals': {
+      // Two portal pairs
+      gameState.portals=[
+        {x:BND.l+200, y:H/2, r:16, pair:1, color:'#44aaff'},
+        {x:BND.r-200, y:BND.t+100, r:16, pair:1, color:'#44aaff'},
+        {x:W/2, y:BND.b-100, r:16, pair:2, color:'#ff88aa'},
+        {x:BND.r-100, y:H/2+60, r:16, pair:2, color:'#ff88aa'},
+      ];
+      addBumper(2);
+      break;
+    }
+
+    case 'foosbar': {
+      // Rows of foosplayer spinners (stationary blocking bars)
+      for(let row=0;row<3;row++){
+        const rx=BND.l+180+row*170;
+        for(let j=0;j<2;j++){
+          addSpinner(rx, BND.t+100+j*180, 90, 14, 0.0, (j%2)*Math.PI*0.5);
+        }
+      }
+      addSpinner(W*0.5, H/2, 60, 12, 0.5, 0);
+      break;
+    }
+
+    case 'conveyor': {
+      // Conveyor belt zone + bumpers
+      gameState.conveyor={ax:BND.l+130,ay:H/2-50,bx:BND.r-130,by:H/2+50,vx:100,vy:0};
+      addBumper(2);
+      break;
+    }
+
+    case 'maze': {
+      // Grid of wall segments forming corridors
+      const rows=3, cols=4;
+      const cw=(BND.r-BND.l-160)/cols;
+      const ch=(BND.b-BND.t-120)/rows;
+      const ox=BND.l+80, oy=BND.t+60;
+      // Vertical walls
+      for(let c=1;c<cols;c++){
+        for(let r=0;r<rows;r++){
+          if(rnd()>0.45){
+            const x=ox+c*cw, y=oy+r*ch;
+            addWallSeg(x,y,x,y+ch);
+          }
+        }
+      }
+      // Horizontal walls
+      for(let r=1;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          if(rnd()>0.45){
+            const x=ox+c*cw, y=oy+r*ch;
+            addWallSeg(x,y,x+cw,y);
+          }
+        }
+      }
+      break;
+    }
+
+    case 'spinners3':
+      addSpinner(W*0.3, H*0.4, 130, 14, 1.1, 0);
+      addSpinner(W*0.6, H*0.5, 110, 12, -1.3, 1);
+      addSpinner(W*0.45, H*0.3, 90, 10, 0.8, 2);
+      addBumper(2);
+      break;
+
+    case 'finale':
+      addSpinner(W/2, H/2, 170, 16, 0.6, 0);
+      addSpinner(W*0.3, H*0.3, 100, 12, -1.1, 1);
+      addSpinner(W*0.7, H*0.65, 100, 12, 0.9, 2);
+      addBumper(3,20,30,['🌴','🌵','🏔️']);
+      gameState.conveyor={ax:BND.l+100,ay:H/2-40,bx:W/2-60,by:H/2+40,vx:80,vy:0};
+      const finPaths=[
+        [{x:W*0.3,y:BND.b-100},{x:W*0.7,y:BND.b-100}],
+        [{x:BND.r-100,y:BND.t+120},{x:BND.r-100,y:H*0.65}],
+      ];
+      addAnimal(finPaths[0][0].x,finPaths[0][0].y,14,'🐢',finPaths[0],60);
+      addAnimal(finPaths[1][0].x,finPaths[1][0].y,14,'🐊',finPaths[1],80);
+      break;
+  }
+}
+
+// ===================== SPINNER HELPERS ===================== //
+function spinnerEndpoints(sp){
+  const ang=sp.phase0+sp.omega*simTime;
+  const dx=Math.cos(ang), dy=Math.sin(ang);
+  const hx=(sp.len/2)*dx, hy=(sp.len/2)*dy;
+  return [{x:sp.cx-hx,y:sp.cy-hy},{x:sp.cx+hx,y:sp.cy+hy},ang];
+}
+
+// ===================== PHYSICS ===================== //
+let portalCooldown=0;
+function step(){
+  const b=gameState.ball; const dt=PHYS.dt; simTime+=dt;
+  if(portalCooldown>0) portalCooldown-=dt;
+
+  // Friction
+  const fr=Math.exp(-PHYS.mu*dt); b.vx*=fr; b.vy*=fr;
+  let speed=Math.hypot(b.vx,b.vy);
+  if(speed>PHYS.maxSpeed){const s=PHYS.maxSpeed/speed;b.vx*=s;b.vy*=s;speed=PHYS.maxSpeed;}
+  b.x+=b.vx*dt; b.y+=b.vy*dt;
+
+  // Conveyor
+  if(gameState.conveyor){
+    const cv=gameState.conveyor;
+    if(b.x>cv.ax&&b.x<cv.bx&&b.y>cv.ay&&b.y<cv.by){
+      b.vx+=cv.vx*dt*2; b.vy+=cv.vy*dt*2;
+    }
+  }
+
+  // Animals (update position + collide)
+  for(const a of gameState.animals){
+    const target=a.path[a.pathIdx];
+    const dx=target.x-a.x, dy=target.y-a.y; const d=Math.hypot(dx,dy);
+    if(d<4){a.pathIdx=(a.pathIdx+1)%a.path.length;}
+    else{a.x+=dx/d*a.speed*dt; a.y+=dy/d*a.speed*dt;}
+    // Collide ball with animal
+    const abx=b.x-a.x, aby=b.y-a.y; const ad=Math.hypot(abx,aby); const minD=BALL_R+a.r;
+    if(ad<minD){
+      const n={x:abx/(ad||1),y:aby/(ad||1)};
+      const pen=(minD-ad)+0.1; b.x+=n.x*pen; b.y+=n.y*pen;
+      const vn=V.dot({x:b.vx,y:b.vy},n);
+      if(vn<0){b.vx-=n.x*vn*1.6; b.vy-=n.y*vn*1.6;}
+    }
+  }
+
+  // Wall segments
+  for(const w of gameState.walls){
+    const {d,c}=distPointSeg({x:b.x,y:b.y},{x:w.ax,y:w.ay},{x:w.bx,y:w.by});
+    const minD=BALL_R+4;
+    if(d<minD){
+      const n=V.nor({x:b.x-c.x,y:b.y-c.y});
+      const pen=(minD-d)+0.1; b.x+=n.x*pen; b.y+=n.y*pen;
+      const v={x:b.vx,y:b.vy}; const vn=V.dot(v,n);
+      if(vn<0){b.vx-=n.x*vn*PHYS.eWall*2; b.vy-=n.y*vn*PHYS.eWall*2;}
+    }
+  }
+
+  // Boundy walls
+  if(b.x-BALL_R<BND.l){b.x=BND.l+BALL_R;b.vx=Math.abs(b.vx)*PHYS.eWall;}
+  if(b.x+BALL_R>BND.r){b.x=BND.r-BALL_R;b.vx=-Math.abs(b.vx)*PHYS.eWall;}
+  if(b.y-BALL_R<BND.t){b.y=BND.t+BALL_R;b.vy=Math.abs(b.vy)*PHYS.eWall;}
+  if(b.y+BALL_R>BND.b){b.y=BND.b-BALL_R;b.vy=-Math.abs(b.vy)*PHYS.eWall;}
+
+  // Bumpers
+  for(const bub of gameState.bumpers){
+    const dx=b.x-bub.x, dy=b.y-bub.y; const d=Math.hypot(dx,dy); const minD=BALL_R+bub.r;
+    if(d<minD){
+      const n={x:dx/(d||1),y:dy/(d||1)};
+      const pen=(minD-d)+0.1; b.x+=n.x*pen; b.y+=n.y*pen;
+      const v={x:b.vx,y:b.vy}; const vn=V.dot(v,n); const vt=V.sub(v,V.mul(n,vn));
+      const out=V.sub(vt,V.mul(n,vn*PHYS.eBumper)); b.vx=out.x; b.vy=out.y;
+      flashBumper(bub);
+    }
+  }
+
+  // Spinners
+  for(const sp of gameState.spinners){
+    if(sp.omega===0){
+      // Static bar — simple segment collision
+      const [A,B]=spinnerEndpoints(sp); const capR=sp.thick*0.5;
+      const {d,c}=distPointSeg({x:b.x,y:b.y},A,B); const minD=BALL_R+capR;
+      if(d<minD){
+        const n=V.nor({x:b.x-c.x,y:b.y-c.y});
+        const pen=(minD-d)+0.1; b.x+=n.x*pen; b.y+=n.y*pen;
+        const v={x:b.vx,y:b.vy}; const vn=V.dot(v,n);
+        if(vn<0){b.vx-=n.x*vn*1.5; b.vy-=n.y*vn*1.5;}
+      }
+    } else {
+      const [A,B]=spinnerEndpoints(sp); const capR=sp.thick*0.5;
+      const {d,c,t}=distPointSeg({x:b.x,y:b.y},A,B); const minD=BALL_R+capR;
+      if(d<minD){
+        const n=V.nor({x:b.x-c.x,y:b.y-c.y});
+        const pen=(minD-d)+0.1; b.x+=n.x*pen; b.y+=n.y*pen;
+        const v={x:b.vx,y:b.vy}; const vn=V.dot(v,n); const vt=V.sub(v,V.mul(n,vn));
+        let out=V.sub(vt,V.mul(n,vn*PHYS.eSpinner));
+        const rel={x:c.x-sp.cx,y:c.y-sp.cy};
+        const vSurf={x:-sp.omega*rel.y,y:sp.omega*rel.x};
+        out=V.add(out,V.mul(vSurf,0.4));
+        b.vx=out.x; b.vy=out.y;
+      }
+    }
+  }
+
+  // Portals
+  if(portalCooldown<=0){
+    for(let i=0;i<gameState.portals.length;i++){
+      const p=gameState.portals[i];
+      const d=Math.hypot(b.x-p.x,b.y-p.y);
+      if(d<p.r+BALL_R){
+        // Find pair partner
+        const partner=gameState.portals.find((q,j)=>j!==i&&q.pair===p.pair);
+        if(partner){
+          b.x=partner.x; b.y=partner.y;
+          portalCooldown=0.4;
+          showToast('🌀 Portal!','great');
+          break;
+        }
+      }
+    }
+  }
+
+  // Pocket
+  const dg=Math.hypot(b.x-gameState.pocket.x,b.y-gameState.pocket.y);
+  if(dg<POCKET_R-2&&Math.hypot(b.vx,b.vy)<PHYS.stop*3){
+    gameState.phase='scored'; b.vx=b.vy=0;
+    const diff=gameState.strokes-gameState.par;
+    if(gameState.strokes===1) showToast('⛳ HOLE IN ONE!!!','great');
+    else if(diff<=-2) showToast('🦅 Eagle!','great');
+    else if(diff===-1) showToast('🐦 Birdie!','good');
+    else if(diff===0) showToast('✅ Par!','good');
+    else if(diff===1) showToast('😬 Bogey','warn');
+    else showToast('😅 Double Bogey+','warn');
+    scorecard[currentHoleIdx]=gameState.strokes;
+    updateScorecard();
+  }
+
+  // Stop
+  if(Math.hypot(b.vx,b.vy)<PHYS.stop&&gameState.phase==='roll'){
+    b.vx=b.vy=0; gameState.phase='aim';
+  }
+}
+
+// ===================== FLASH ===================== //
+const bumperFlash=new Map();
+function flashBumper(bub){bumperFlash.set(bub,0.25);}
+
+// ===================== DRAW ===================== //
+function drawFelt(){
+  // Felt checkerboard subtle
+  ctx.save();
+  for(let x=BND.l;x<BND.r;x+=40){
+    for(let y=BND.t;y<BND.b;y+=40){
+      const even=((Math.floor((x-BND.l)/40)+(Math.floor((y-BND.t)/40)))%2)===0;
+      ctx.fillStyle=even?getComputedStyle(document.body).getPropertyValue('--felt').trim()||'#0d4a2a':'#0b4025';
+      ctx.fillRect(x,y,Math.min(40,BND.r-x),Math.min(40,BND.b-y));
+    }
+  }
+  ctx.restore();
+}
+
+function drawConveyor(){
+  const cv=gameState.conveyor; if(!cv) return;
+  ctx.save();
+  ctx.fillStyle='rgba(68,170,255,0.08)';
+  ctx.fillRect(cv.ax,cv.ay,cv.bx-cv.ax,cv.by-cv.ay);
+  // Arrow stripes
+  ctx.strokeStyle='rgba(68,170,255,0.3)'; ctx.lineWidth=1;
+  const arrowSpacing=30;
+  const offset=(simTime*80)%arrowSpacing;
+  for(let x=cv.ax-arrowSpacing+offset;x<cv.bx;x+=arrowSpacing){
+    ctx.beginPath();
+    ctx.moveTo(x,cv.ay+4); ctx.lineTo(x+18,cv.ay+(cv.by-cv.ay)/2); ctx.lineTo(x,cv.by-4);
+    ctx.stroke();
+  }
+  ctx.strokeStyle='rgba(68,170,255,0.4)'; ctx.lineWidth=1.5;
+  ctx.strokeRect(cv.ax,cv.ay,cv.bx-cv.ax,cv.by-cv.ay);
+  ctx.restore();
+}
+
+function drawWalls(){
+  ctx.save();
+  ctx.strokeStyle='#8a6030'; ctx.lineWidth=10; ctx.lineCap='round';
+  for(const w of gameState.walls){
+    ctx.beginPath(); ctx.moveTo(w.ax,w.ay); ctx.lineTo(w.bx,w.by); ctx.stroke();
+  }
+  ctx.strokeStyle='#d4a060'; ctx.lineWidth=4;
+  for(const w of gameState.walls){
+    ctx.beginPath(); ctx.moveTo(w.ax,w.ay); ctx.lineTo(w.bx,w.by); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawPortals(){
+  for(const p of gameState.portals){
+    const t=simTime;
+    const pulse=0.6+0.4*Math.sin(t*3+p.pair);
+    ctx.save();
+    const grad=ctx.createRadialGradient(p.x,p.y,2,p.x,p.y,p.r+4);
+    grad.addColorStop(0,p.color+'ff'); grad.addColorStop(1,p.color+'00');
+    ctx.globalAlpha=pulse;
+    ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(p.x,p.y,p.r+4,0,Math.PI*2); ctx.fill();
+    ctx.globalAlpha=1;
+    ctx.strokeStyle=p.color; ctx.lineWidth=2.5;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.stroke();
+    ctx.restore();
+    // Inner ring
+    ctx.save(); ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.globalAlpha=0.6;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*0.5,0,Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function drawBumpers(){
+  for(const bub of gameState.bumpers){
+    const flash=bumperFlash.get(bub)||0;
+    const scale=flash>0?1+flash*0.3:1;
+    if(flash>0) bumperFlash.set(bub,Math.max(0,flash-PHYS.dt*6));
+
+    ctx.save();
+    ctx.translate(bub.x,bub.y); ctx.scale(scale,scale);
+    // Glow ring
+    if(flash>0){
+      ctx.beginPath(); ctx.arc(0,0,bub.r+6,0,Math.PI*2);
+      ctx.fillStyle=`rgba(255,200,60,${flash*0.6})`; ctx.fill();
+    }
+    ctx.font=`${bub.r*1.5}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(bub.emoji||'🌴',0,1);
+    ctx.restore();
+  }
+}
+
+function drawAnimals(){
+  for(const a of gameState.animals){
+    const nextPt=a.path[a.pathIdx];
+    const dx=nextPt.x-a.x;
+    ctx.save();
+    ctx.translate(a.x,a.y);
+    if(dx<0) ctx.scale(-1,1);
+    ctx.font=`${a.r*1.8}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(a.emoji,0,1);
+    ctx.restore();
+    // Shadow ring
+    ctx.beginPath(); ctx.arc(a.x,a.y+a.r*0.6,a.r*0.7,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.fill();
+  }
+}
+
+function drawSpinners(){
+  for(const sp of gameState.spinners){
+    const [A,B,ang]=spinnerEndpoints(sp);
+    ctx.save();
+    ctx.translate(sp.cx,sp.cy); ctx.rotate(ang);
+    // Bar
+    const grad=ctx.createLinearGradient(-sp.len/2,0,sp.len/2,0);
+    grad.addColorStop(0,'#4a6aaf'); grad.addColorStop(0.5,'#82aaff'); grad.addColorStop(1,'#4a6aaf');
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    ctx.roundRect(-sp.len/2,-sp.thick/2,sp.len,sp.thick,sp.thick/2);
+    ctx.fill();
+    // Highlight
+    ctx.fillStyle='rgba(255,255,255,0.2)';
+    ctx.beginPath();
+    ctx.roundRect(-sp.len/2,-sp.thick/2,sp.len,sp.thick*0.4,sp.thick/2);
+    ctx.fill();
+    ctx.restore();
+    // Center pin
+    ctx.beginPath(); ctx.arc(sp.cx,sp.cy,5,0,Math.PI*2);
+    ctx.fillStyle='#ddeeff'; ctx.fill();
+  }
+}
+
+function drawPocket(){
+  const p=gameState.pocket; const t=simTime;
+  // Outer glow
+  const grad=ctx.createRadialGradient(p.x,p.y,2,p.x,p.y,POCKET_R+10);
+  grad.addColorStop(0,'rgba(170,255,68,0.6)'); grad.addColorStop(1,'rgba(170,255,68,0)');
+  ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(p.x,p.y,POCKET_R+10,0,Math.PI*2); ctx.fill();
+  // Hole (dark)
+  ctx.beginPath(); ctx.arc(p.x,p.y,POCKET_R,0,Math.PI*2);
+  ctx.fillStyle='rgba(0,0,0,0.8)'; ctx.fill();
+  // Flag
+  ctx.save();
+  const flagWave=Math.sin(t*3)*4;
+  ctx.strokeStyle='#aaaaaa'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(p.x,p.y-POCKET_R*0.5); ctx.lineTo(p.x,p.y-POCKET_R-22); ctx.stroke();
+  // Flag triangle
+  ctx.fillStyle='#ff4444';
+  ctx.beginPath(); ctx.moveTo(p.x,p.y-POCKET_R-22);
+  ctx.lineTo(p.x+14+flagWave,p.y-POCKET_R-14);
+  ctx.lineTo(p.x,p.y-POCKET_R-8); ctx.fill();
+  ctx.restore();
+  // Rim
+  ctx.beginPath(); ctx.arc(p.x,p.y,POCKET_R,0,Math.PI*2);
+  ctx.strokeStyle='#aaff44'; ctx.lineWidth=2.5; ctx.stroke();
+}
+
+function drawBall(){
+  const b=gameState.ball;
+  // Shadow
+  ctx.beginPath(); ctx.ellipse(b.x+2,b.y+3,BALL_R*0.8,BALL_R*0.4,0,0,Math.PI*2);
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fill();
+  // Ball
+  ctx.save();
+  if(selectedEmoji==='⚪'){
+    // Classic golf ball
+    const g=ctx.createRadialGradient(b.x-3,b.y-3,1,b.x,b.y,BALL_R);
+    g.addColorStop(0,'#ffffff'); g.addColorStop(1,'#c8c8c8');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(b.x,b.y,BALL_R,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(150,150,150,0.5)'; ctx.lineWidth=0.8; ctx.stroke();
+  } else {
+    ctx.font=`${BALL_R*2.2}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(selectedEmoji,b.x,b.y+1);
+  }
+  ctx.restore();
+}
+
+function drawAim(){
+  if(gameState.phase!=='aim') return;
+  const b=gameState.ball;
+  ctx.save(); ctx.globalAlpha=0.7;
+  if(isDragging&&aimVec&&V.len(aimVec)>5){
+    // Direction line
+    const dir=V.nor(aimVec); const mag=Math.min(V.len(aimVec),240);
+    ctx.strokeStyle='#aaff44'; ctx.lineWidth=1.5; ctx.setLineDash([6,5]);
+    ctx.beginPath(); ctx.moveTo(b.x,b.y);
+    // Extend line forward showing trajectory
+    ctx.lineTo(b.x+dir.x*200, b.y+dir.y*200); ctx.stroke();
+    // Power arc indicator
+    ctx.setLineDash([]);
+    ctx.strokeStyle='rgba(170,255,68,0.3)'; ctx.lineWidth=4;
+    ctx.beginPath(); ctx.arc(b.x,b.y,mag*0.7,0,Math.PI*2); ctx.stroke();
+    // Arrow tip
+    const ax=b.x+dir.x*90, ay=b.y+dir.y*90;
+    ctx.strokeStyle='#aaff44'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(ax,ay);
+    const perp={x:-dir.y,y:dir.x};
+    ctx.lineTo(ax-dir.x*12+perp.x*6, ay-dir.y*12+perp.y*6);
+    ctx.moveTo(ax,ay);
+    ctx.lineTo(ax-dir.x*12-perp.x*6, ay-dir.y*12-perp.y*6);
+    ctx.stroke();
+  } else {
+    // Idle indicator ring
+    const pulse=0.4+0.3*Math.sin(simTime*3);
+    ctx.globalAlpha=pulse;
+    ctx.strokeStyle='#aaff44'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
+    ctx.beginPath(); ctx.arc(b.x,b.y,BALL_R+8,0,Math.PI*2); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.restore();
+}
+
+function drawScoredOverlay(){
+  if(gameState.phase!=='scored') return;
+  ctx.save();
+  ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='rgba(10,20,10,0.9)';
+  const bw=320, bh=90;
+  const bx=(W-bw)/2, by=(H-bh)/2;
+  ctx.beginPath(); ctx.roundRect(bx,by,bw,bh,12); ctx.fill();
+  ctx.strokeStyle='#aaff44'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.roundRect(bx,by,bw,bh,12); ctx.stroke();
+  ctx.fillStyle='#aaff44'; ctx.textAlign='center'; ctx.font='800 17px Syne, sans-serif';
+  ctx.fillText('HOLE COMPLETE ⛳',W/2,by+32);
+  ctx.fillStyle='rgba(200,220,200,0.8)'; ctx.font='400 12px DM Mono, monospace';
+  const diff=gameState.strokes-gameState.par;
+  const msg=diff<0?`${Math.abs(diff)} under par`:diff===0?'Even par':`${diff} over par`;
+  ctx.fillText(`${gameState.strokes} strokes • ${msg} • Press N for next hole`,W/2,by+58);
+  ctx.textAlign='left';
+  ctx.restore();
+}
+
+function drawHUD(){
+  // Top bar
+  ctx.save();
+  ctx.fillStyle='rgba(0,0,0,0.45)';
+  ctx.beginPath(); ctx.roundRect(BND.l,BND.t-36,400,28,6); ctx.fill();
+  ctx.fillStyle='#e8f4e8'; ctx.font='12px DM Mono, monospace';
+  ctx.fillText(`Hole ${currentHoleIdx+1} • ${gameState.holeName} • Par ${gameState.par} • Strokes: ${gameState.strokes}`,BND.l+10,BND.t-16);
+  ctx.restore();
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  drawFelt();
+  drawConveyor();
+  drawWalls();
+  drawPortals();
+  drawBumpers();
+  drawAnimals();
+  drawSpinners();
+  drawPocket();
+  drawBall();
+  drawAim();
+  drawHUD();
+  drawScoredOverlay();
+}
+
+// ===================== INPUT ===================== //
+let isDragging=false, dragStart=null, aimVec=null;
+canvas.addEventListener('mousedown',e=>{
+  if(gameState.phase!=='aim') return;
+  const m=getMouse(e);
+  // Only start drag near ball
+  if(Math.hypot(m.x-gameState.ball.x,m.y-gameState.ball.y)<60){
+    isDragging=true; dragStart=m; aimVec={x:0,y:0};
+  }
+});
+window.addEventListener('mousemove',e=>{
+  if(!isDragging||gameState.phase!=='aim') return;
+  const m=getMouse(e); aimVec=V.sub(dragStart,m);
+  const pct=Math.min(V.len(aimVec)/240,1);
+  document.getElementById('powerFill').style.width=(pct*100)+'%';
+});
+window.addEventListener('mouseup',e=>{
+  if(!isDragging||gameState.phase!=='aim'){isDragging=false;return;}
+  isDragging=false; if(!aimVec||V.len(aimVec)<5) return;
+  const mag=Math.min(V.len(aimVec),240);
+  const dir=V.nor(aimVec); const speed=mag*4.2;
+  gameState.ball.vx=dir.x*speed; gameState.ball.vy=dir.y*speed;
+  gameState.phase='roll'; gameState.strokes++;
+  document.getElementById('powerFill').style.width='0%';
+  updateSidebarStats();
+});
+canvas.addEventListener('touchstart',e=>{
+  e.preventDefault(); if(gameState.phase!=='aim') return;
+  const m=getTouch(e); isDragging=true; dragStart=m; aimVec={x:0,y:0};
+},{passive:false});
+canvas.addEventListener('touchmove',e=>{
+  e.preventDefault(); if(!isDragging) return;
+  const m=getTouch(e); aimVec=V.sub(dragStart,m);
+  const pct=Math.min(V.len(aimVec)/240,1);
+  document.getElementById('powerFill').style.width=(pct*100)+'%';
+},{passive:false});
+canvas.addEventListener('touchend',e=>{
+  e.preventDefault();
+  if(!isDragging||gameState.phase!=='aim'){isDragging=false;return;}
+  isDragging=false; if(!aimVec||V.len(aimVec)<5) return;
+  const mag=Math.min(V.len(aimVec),240); const dir=V.nor(aimVec); const speed=mag*4.2;
+  gameState.ball.vx=dir.x*speed; gameState.ball.vy=dir.y*speed;
+  gameState.phase='roll'; gameState.strokes++;
+  document.getElementById('powerFill').style.width='0%';
+  updateSidebarStats();
+},{passive:false});
+
+window.addEventListener('keydown',e=>{
+  if(e.key==='r'||e.key==='R') resetBall();
+  if(e.key==='n'||e.key==='N') nextHole();
+});
+function getMouse(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*W/r.width,y:(e.clientY-r.top)*H/r.height};}
+function getTouch(e){const r=canvas.getBoundingClientRect();const t=e.touches[0];return{x:(t.clientX-r.left)*W/r.width,y:(t.clientY-r.top)*H/r.height};}
+
+// ===================== GAME LOOP ===================== //
+let last=performance.now(), acc=0;
+function loop(t){
+  const delta=(t-last)/1000; last=t; acc+=Math.min(delta,0.1);
+  while(acc>=PHYS.dt){if(!paused) step(); acc-=PHYS.dt;}
+  draw(); requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ===================== CONTROLS ===================== //
+function resetBall(){gameState.ball.x=BND.l+80;gameState.ball.y=BND.b-80;gameState.ball.vx=0;gameState.ball.vy=0;gameState.phase='aim';}
+function nextHole(){
+  if(currentHoleIdx<HOLES.length-1){
+    currentHoleIdx++;
+    loadHole(currentHoleIdx);
+  }
+}
+function loadHole(idx){
+  currentHoleIdx=idx; generateHole(idx);
+  updateSidebarStats(); updateHoleList(); updateScorecard();
+}
+function updateSidebarStats(){
+  document.getElementById('sHole').textContent=currentHoleIdx+1;
+  document.getElementById('sPar').textContent=gameState.par;
+  document.getElementById('sStrokes').textContent=gameState.strokes;
+  // Total score vs par
+  let total=0, played=0;
+  for(let i=0;i<scorecard.length;i++){if(scorecard[i]!=null){total+=scorecard[i];played++;}}
+  const diff=total-HOLES.slice(0,played).reduce((s,h)=>s+h.par,0);
+  const el=document.getElementById('sTotal');
+  el.textContent=played===0?'—':diff===0?'E':(diff>0?'+':'')+diff;
+  el.className='stat-val '+(diff<0?'':'diff>0?'bad':'neutral');
+}
+
+// Toast system
+let toastTimer;
+function showToast(msg,type){
+  const t=document.getElementById('toast');
+  clearTimeout(toastTimer);
+  t.textContent=msg; t.className=`toast ${type} show`;
+  toastTimer=setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+// Scorecard
+function updateScorecard(){
+  const cells=document.getElementById('scorecardCells');
+  cells.innerHTML='';
+  for(let i=0;i<HOLES.length;i++){
+    const c=document.createElement('div');
+    c.className='sc-cell'+(i===currentHoleIdx?' active':scorecard[i]!=null?' done':'');
+    if(scorecard[i]!=null){
+      const diff=scorecard[i]-HOLES[i].par;
+      if(diff<=-2) c.className+=' score-eagle';
+      else if(diff===-1) c.className+=' score-birdie';
+      else if(diff===0) c.className+=' score-par';
+      else if(diff===1) c.className+=' score-bogey';
+      else c.className+=' score-double';
+      c.textContent=scorecard[i];
+    } else {
+      c.textContent=i+1;
+    }
+    cells.appendChild(c);
+  }
+  const total=scorecard.reduce((s,v)=>v!=null?s+v:s,0);
+  document.getElementById('scTotal').textContent=scorecard.some(v=>v!=null)?total:'—';
+}
+
+// Hole list
+function updateHoleList(){
+  const list=document.getElementById('holeList'); list.innerHTML='';
+  HOLES.forEach((h,i)=>{
+    const item=document.createElement('div');
+    item.className='hole-item'+(i===currentHoleIdx?' active':'');
+    const diff=scorecard[i]!=null?scorecard[i]-h.par:null;
+    const scoreClass=diff===null?'':(diff<=-2?'score-eagle':diff===-1?'score-birdie':diff===0?'score-par':diff===1?'score-bogey':'score-double');
+    const scoreText=scorecard[i]!=null?scorecard[i]:'—';
+    item.innerHTML=`<span class="hi-num">${i+1}</span><span class="hi-name">${h.name}</span><span class="hi-par">par ${h.par}</span><span class="hi-score ${scoreClass}">${scoreText}</span>`;
+    item.onclick=()=>loadHole(i);
+    list.appendChild(item);
+  });
+}
+
+// Emoji picker
+const EMOJIS=['⚪','⚽','🏀','🎱','🍎','🍊','🍋','🎃','🧠','🐸','🐧','👾','🎯','💀','🌕'];
+const THEMES=[
+  {name:'Classic',id:'green'},
+  {name:'Desert',id:'desert'},
+  {name:'Space',id:'space'},
+  {name:'Candy',id:'candy'},
+  {name:'Ice',id:'ice'},
+];
+function buildPicker(){
+  const grid=document.getElementById('emojiGrid');
+  EMOJIS.forEach(e=>{
+    const btn=document.createElement('button');
+    btn.className='emoji-btn'+(e===selectedEmoji?' selected':'');
+    btn.textContent=e;
+    btn.onclick=()=>{
+      selectedEmoji=e; document.querySelectorAll('.emoji-btn').forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected');
+    };
+    grid.appendChild(btn);
+  });
+  const themeGrid=document.getElementById('themeGrid');
+  THEMES.forEach(th=>{
+    const btn=document.createElement('button');
+    btn.className='theme-btn'+(th.id===currentTheme?' selected':'');
+    btn.textContent=th.name;
+    btn.onclick=()=>{
+      currentTheme=th.id;
+      document.body.className=th.id==='green'?'':`theme-${th.id}`;
+      document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected');
+    };
+    themeGrid.appendChild(btn);
+  });
+}
+buildPicker();
+
+// Buttons
+document.getElementById('btnNextHole').onclick=nextHole;
+document.getElementById('btnReset').onclick=resetBall;
+document.getElementById('btnNew').onclick=()=>{
+  scorecard.length=0; currentHoleIdx=0; loadHole(0);
+};
+document.getElementById('btnDaily').onclick=()=>{
+  // Daily picks a hole based on date
+  const idx=dailySeed()%HOLES.length;
+  loadHole(idx);
+};
+
+// Init
+loadHole(0);
+</script>
+</body>
+</html>
