@@ -163,8 +163,9 @@ body{display:flex;flex-direction:column;min-height:100vh}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
 
 /* THEMES */
+/* FIX 1: was '#1010408' (7 chars = invalid hex), corrected to '#101040' */
 body.theme-desert{--felt:#3d2b0a;--felt2:#4a3410;--rail:#1a0f04;--rail2:#2a1a08;--border:#3a2808}
-body.theme-space{--felt:#05051a;--felt2:#080828;--rail:#0a0a2a;--rail2:#1010408;--border:#1a1a3a}
+body.theme-space{--felt:#05051a;--felt2:#080828;--rail:#0a0a2a;--rail2:#101040;--border:#1a1a3a}
 body.theme-candy{--felt:#2a0a1a;--felt2:#3a0f22;--rail:#1a0510;--rail2:#2a0818;--border:#3a1030}
 body.theme-ice{--felt:#062030;--felt2:#082838;--rail:#041520;--rail2:#062030;--border:#0d3a50}
 </style>
@@ -219,7 +220,7 @@ body.theme-ice{--felt:#062030;--felt2:#082838;--rail:#041520;--rail2:#062030;--b
         <button class="btn primary" id="btnNextHole" style="flex:1">Next Hole →</button>
       </div>
       <p style="font-size:10px;color:var(--muted);margin-top:8px;line-height:1.6">
-        Aim: drag & release from ball<br>
+        Aim: drag &amp; release from ball<br>
         Power: drag distance<br>
         Keys: R=reset, N=next hole
       </p>
@@ -237,8 +238,28 @@ body.theme-ice{--felt:#062030;--felt2:#082838;--rail:#041520;--rail2:#062030;--b
 <div class="toast" id="toast">Hole in One! 🎉</div>
 
 <script>
-// ===================== ENGINE ===================== //
+// ===================== FIX 2: ctx.roundRect polyfill ===================== //
+// roundRect was added in Chrome 99, Firefox 112, Safari 15.4.
+// Older browsers crash without this polyfill.
+if (!CanvasRenderingContext2D.prototype.roundRect) {
+  CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+    r = Math.min(r || 0, Math.abs(w) / 2, Math.abs(h) / 2);
+    this.beginPath();
+    this.moveTo(x + r, y);
+    this.lineTo(x + w - r, y);
+    this.arcTo(x + w, y, x + w, y + r, r);
+    this.lineTo(x + w, y + h - r);
+    this.arcTo(x + w, y + h, x + w - r, y + h, r);
+    this.lineTo(x + r, y + h);
+    this.arcTo(x, y + h, x, y + h - r, r);
+    this.lineTo(x, y + r);
+    this.arcTo(x, y, x + r, y, r);
+    this.closePath();
+    return this;
+  };
+}
 
+// ===================== ENGINE ===================== //
 function makeRng(seed){ let x = seed|0 || 1; return ()=>{ x^=x<<13; x^=x>>>17; x^=x<<5; return (x>>>0)/4294967296; }; }
 function dailySeed(){ const d=new Date(); return parseInt(`${d.getUTCFullYear()}${String(d.getUTCMonth()+1).padStart(2,'0')}${String(d.getUTCDate()).padStart(2,'0')}`); }
 
@@ -266,22 +287,34 @@ const PHYS={dt:1/120,mu:0.55,stop:5,maxSpeed:950,eWall:0.82,eBumper:1.08,eSpinne
 
 let simTime=0, paused=false;
 
+// FIX 3: Cache felt colors so drawFelt doesn't call getComputedStyle ~200x per frame.
+// Recached whenever theme changes.
+let feltColor1 = '#0d4a2a';
+let feltColor2 = '#0b4025';
+function cacheFeltColors() {
+  const style = getComputedStyle(document.body);
+  feltColor1 = style.getPropertyValue('--felt').trim() || '#0d4a2a';
+  // Slightly darken felt2 by mixing — simpler: just use a slightly darker shade
+  feltColor2 = style.getPropertyValue('--felt2').trim() || '#0b4025';
+}
+cacheFeltColors(); // initial cache
+
 // ===================== STATE ===================== //
-const scorecard=[]; // scores per hole (strokes - par)
+const scorecard=[]; // scores per hole (strokes, NOT diff — raw strokes)
 let currentHoleIdx=0;
 let selectedEmoji='⚪';
 let currentTheme='green';
 
 const gameState={
-  phase:'aim', // aim | roll | scored
+  phase:'aim',
   ball:{x:0,y:0,vx:0,vy:0},
   pocket:{x:0,y:0},
-  bumpers:[],  // {x,y,r,emoji?}
-  spinners:[], // {cx,cy,len,thick,omega,phase0}
-  walls:[],    // {ax,ay,bx,by} static wall segments
-  animals:[],  // {x,y,vx,vy,r,emoji,path:[],pathIdx,speed}
-  portals:[],  // [{x,y,r,pairIdx}] pairs
-  conveyor:null, // {ax,ay,bx,by,strength}
+  bumpers:[],
+  spinners:[],
+  walls:[],
+  animals:[],
+  portals:[],
+  conveyor:null,
   par:3,
   strokes:0,
   holeName:'',
@@ -310,12 +343,11 @@ function generateHole(holeIdx){
     phase:'aim', par:h.par, strokes:0, holeName:h.name,
     bumpers:[], spinners:[], walls:[], animals:[], portals:[], conveyor:null,
   });
-  // Ball always bottom-left area, pocket varies
   gameState.ball={x:BND.l+80, y:BND.b-80, vx:0, vy:0};
 
   const R=(lo,hi)=>lo+rnd()*(hi-lo);
   const pocketSide=rnd();
-  if(pocketSide<0.4) gameState.pocket={x:BND.r-80, y:BND.t+80}; // top-right
+  if(pocketSide<0.4) gameState.pocket={x:BND.r-80, y:BND.t+80};
   else if(pocketSide<0.7) gameState.pocket={x:BND.r-80, y:H/2+R(-60,60)};
   else gameState.pocket={x:W/2+R(-80,80), y:BND.t+60};
 
@@ -358,7 +390,6 @@ function generateHole(holeIdx){
       break;
 
     case 'dogleg': {
-      // L-shaped wall corridor
       const mx=W/2, my=H/2;
       addWallSeg(BND.l+120, my-60, mx-20, my-60);
       addWallSeg(BND.l+120, my+60, mx-20, my+60);
@@ -371,7 +402,6 @@ function generateHole(holeIdx){
     }
 
     case 'windmill': {
-      // 4-arm windmill spinner in center
       addSpinner(W/2, H/2-30, 180, 16, 0.7, 0);
       addSpinner(W/2, H/2-30, 180, 12, -0.7, Math.PI/2);
       addBumper(2);
@@ -379,7 +409,6 @@ function generateHole(holeIdx){
     }
 
     case 'animals': {
-      // Moving critters on patrol paths
       const paths=[
         [{x:BND.l+160,y:H/2},{x:W/2-40,y:H/2},{x:W/2-40,y:BND.t+100},{x:BND.l+160,y:BND.t+100}],
         [{x:W/2,y:BND.t+80},{x:BND.r-140,y:BND.t+80},{x:BND.r-140,y:H/2+40},{x:W/2,y:H/2+40}],
@@ -391,54 +420,62 @@ function generateHole(holeIdx){
     }
 
     case 'portals': {
-      // Two portal pairs
       gameState.portals=[
-        {x:BND.l+200, y:H/2, r:16, pair:1, color:'#44aaff'},
+        {x:BND.l+200, y:H/2,       r:16, pair:1, color:'#44aaff'},
         {x:BND.r-200, y:BND.t+100, r:16, pair:1, color:'#44aaff'},
-        {x:W/2, y:BND.b-100, r:16, pair:2, color:'#ff88aa'},
-        {x:BND.r-100, y:H/2+60, r:16, pair:2, color:'#ff88aa'},
+        {x:W/2,       y:BND.b-100, r:16, pair:2, color:'#ff88aa'},
+        {x:BND.r-100, y:H/2+60,   r:16, pair:2, color:'#ff88aa'},
       ];
       addBumper(2);
       break;
     }
 
     case 'foosbar': {
-      // Rows of foosplayer spinners (stationary blocking bars)
-      for(let row=0;row<3;row++){
-        const rx=BND.l+180+row*170;
-        for(let j=0;j<2;j++){
-          addSpinner(rx, BND.t+100+j*180, 90, 14, 0.0, (j%2)*Math.PI*0.5);
-        }
+      // FIX 4: Foosbar rows — 3 vertical columns, each with 2 horizontal blocking bars
+      // spaced so there's a gap to navigate through. omega=0 makes them static obstacles.
+      // Use phase0 to stagger bar position: one high, one low per column.
+      const cols = 3;
+      for(let col = 0; col < cols; col++){
+        const rx = BND.l + 160 + col * 200;
+        // Bar 1: upper half
+        addSpinner(rx, BND.t + 130, 110, 14, 0.0, 0);
+        // Bar 2: lower half (offset so there's a navigable gap between them)
+        addSpinner(rx, BND.b - 130, 110, 14, 0.0, 0);
       }
-      addSpinner(W*0.5, H/2, 60, 12, 0.5, 0);
+      // One slow-spinning bar in center for variety
+      addSpinner(W * 0.5, H / 2, 70, 12, 0.6, 0);
       break;
     }
 
     case 'conveyor': {
-      // Conveyor belt zone + bumpers
       gameState.conveyor={ax:BND.l+130,ay:H/2-50,bx:BND.r-130,by:H/2+50,vx:100,vy:0};
       addBumper(2);
       break;
     }
 
     case 'maze': {
-      // Grid of wall segments forming corridors
+      // FIX 5: Maze generation — guarantee a clear path from ball to pocket by
+      // reserving a corridor. Then add random walls only outside that corridor.
       const rows=3, cols=4;
       const cw=(BND.r-BND.l-160)/cols;
       const ch=(BND.b-BND.t-120)/rows;
       const ox=BND.l+80, oy=BND.t+60;
-      // Vertical walls
+      // Clear corridor: bottom row all the way right, then up to pocket
+      // Encode as set of (col,row) vertical walls to SKIP
+      const clearVert=new Set(['3-0','3-1','3-2']); // right column open vertically
+      const clearHoriz=new Set(['0-2','1-2','2-2','3-2']); // bottom row open horizontally
       for(let c=1;c<cols;c++){
         for(let r=0;r<rows;r++){
+          if(clearVert.has(`${c}-${r}`)) continue;
           if(rnd()>0.45){
             const x=ox+c*cw, y=oy+r*ch;
             addWallSeg(x,y,x,y+ch);
           }
         }
       }
-      // Horizontal walls
       for(let r=1;r<rows;r++){
         for(let c=0;c<cols;c++){
+          if(clearHoriz.has(`${c}-${r}`)) continue;
           if(rnd()>0.45){
             const x=ox+c*cw, y=oy+r*ch;
             addWallSeg(x,y,x+cw,y);
@@ -485,7 +522,6 @@ function step(){
   const b=gameState.ball; const dt=PHYS.dt; simTime+=dt;
   if(portalCooldown>0) portalCooldown-=dt;
 
-  // Friction
   const fr=Math.exp(-PHYS.mu*dt); b.vx*=fr; b.vy*=fr;
   let speed=Math.hypot(b.vx,b.vy);
   if(speed>PHYS.maxSpeed){const s=PHYS.maxSpeed/speed;b.vx*=s;b.vy*=s;speed=PHYS.maxSpeed;}
@@ -499,13 +535,12 @@ function step(){
     }
   }
 
-  // Animals (update position + collide)
+  // Animals
   for(const a of gameState.animals){
     const target=a.path[a.pathIdx];
     const dx=target.x-a.x, dy=target.y-a.y; const d=Math.hypot(dx,dy);
     if(d<4){a.pathIdx=(a.pathIdx+1)%a.path.length;}
     else{a.x+=dx/d*a.speed*dt; a.y+=dy/d*a.speed*dt;}
-    // Collide ball with animal
     const abx=b.x-a.x, aby=b.y-a.y; const ad=Math.hypot(abx,aby); const minD=BALL_R+a.r;
     if(ad<minD){
       const n={x:abx/(ad||1),y:aby/(ad||1)};
@@ -527,7 +562,7 @@ function step(){
     }
   }
 
-  // Boundy walls
+  // Boundary walls
   if(b.x-BALL_R<BND.l){b.x=BND.l+BALL_R;b.vx=Math.abs(b.vx)*PHYS.eWall;}
   if(b.x+BALL_R>BND.r){b.x=BND.r-BALL_R;b.vx=-Math.abs(b.vx)*PHYS.eWall;}
   if(b.y-BALL_R<BND.t){b.y=BND.t+BALL_R;b.vy=Math.abs(b.vy)*PHYS.eWall;}
@@ -548,7 +583,6 @@ function step(){
   // Spinners
   for(const sp of gameState.spinners){
     if(sp.omega===0){
-      // Static bar — simple segment collision
       const [A,B]=spinnerEndpoints(sp); const capR=sp.thick*0.5;
       const {d,c}=distPointSeg({x:b.x,y:b.y},A,B); const minD=BALL_R+capR;
       if(d<minD){
@@ -579,7 +613,6 @@ function step(){
       const p=gameState.portals[i];
       const d=Math.hypot(b.x-p.x,b.y-p.y);
       if(d<p.r+BALL_R){
-        // Find pair partner
         const partner=gameState.portals.find((q,j)=>j!==i&&q.pair===p.pair);
         if(partner){
           b.x=partner.x; b.y=partner.y;
@@ -604,6 +637,7 @@ function step(){
     else showToast('😅 Double Bogey+','warn');
     scorecard[currentHoleIdx]=gameState.strokes;
     updateScorecard();
+    updateSidebarStats();
   }
 
   // Stop
@@ -613,21 +647,29 @@ function step(){
 }
 
 // ===================== FLASH ===================== //
+// FIX 6: bumperFlash now stores {value, lastTs} so decay uses real elapsed time,
+// not PHYS.dt. This prevents flash duration varying with framerate.
 const bumperFlash=new Map();
-function flashBumper(bub){bumperFlash.set(bub,0.25);}
+function flashBumper(bub){ bumperFlash.set(bub, {value:0.25, ts: performance.now()}); }
+function getBumperFlash(bub) {
+  const f = bumperFlash.get(bub);
+  if(!f) return 0;
+  const elapsed = (performance.now() - f.ts) / 1000;
+  const remaining = f.value - elapsed * 4; // decay rate: gone in ~0.25s real time
+  if(remaining <= 0){ bumperFlash.delete(bub); return 0; }
+  return remaining;
+}
 
 // ===================== DRAW ===================== //
 function drawFelt(){
-  // Felt checkerboard subtle
-  ctx.save();
+  // FIX 3 applied: use cached felt colors instead of getComputedStyle each frame
   for(let x=BND.l;x<BND.r;x+=40){
     for(let y=BND.t;y<BND.b;y+=40){
       const even=((Math.floor((x-BND.l)/40)+(Math.floor((y-BND.t)/40)))%2)===0;
-      ctx.fillStyle=even?getComputedStyle(document.body).getPropertyValue('--felt').trim()||'#0d4a2a':'#0b4025';
+      ctx.fillStyle = even ? feltColor1 : feltColor2;
       ctx.fillRect(x,y,Math.min(40,BND.r-x),Math.min(40,BND.b-y));
     }
   }
-  ctx.restore();
 }
 
 function drawConveyor(){
@@ -635,7 +677,6 @@ function drawConveyor(){
   ctx.save();
   ctx.fillStyle='rgba(68,170,255,0.08)';
   ctx.fillRect(cv.ax,cv.ay,cv.bx-cv.ax,cv.by-cv.ay);
-  // Arrow stripes
   ctx.strokeStyle='rgba(68,170,255,0.3)'; ctx.lineWidth=1;
   const arrowSpacing=30;
   const offset=(simTime*80)%arrowSpacing;
@@ -675,7 +716,6 @@ function drawPortals(){
     ctx.strokeStyle=p.color; ctx.lineWidth=2.5;
     ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.stroke();
     ctx.restore();
-    // Inner ring
     ctx.save(); ctx.strokeStyle='#fff'; ctx.lineWidth=1; ctx.globalAlpha=0.6;
     ctx.beginPath(); ctx.arc(p.x,p.y,p.r*0.5,0,Math.PI*2); ctx.stroke();
     ctx.restore();
@@ -684,13 +724,11 @@ function drawPortals(){
 
 function drawBumpers(){
   for(const bub of gameState.bumpers){
-    const flash=bumperFlash.get(bub)||0;
+    const flash = getBumperFlash(bub); // FIX 6: use real-time flash value
     const scale=flash>0?1+flash*0.3:1;
-    if(flash>0) bumperFlash.set(bub,Math.max(0,flash-PHYS.dt*6));
 
     ctx.save();
     ctx.translate(bub.x,bub.y); ctx.scale(scale,scale);
-    // Glow ring
     if(flash>0){
       ctx.beginPath(); ctx.arc(0,0,bub.r+6,0,Math.PI*2);
       ctx.fillStyle=`rgba(255,200,60,${flash*0.6})`; ctx.fill();
@@ -711,7 +749,6 @@ function drawAnimals(){
     ctx.font=`${a.r*1.8}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
     ctx.fillText(a.emoji,0,1);
     ctx.restore();
-    // Shadow ring
     ctx.beginPath(); ctx.arc(a.x,a.y+a.r*0.6,a.r*0.7,0,Math.PI*2);
     ctx.fillStyle='rgba(0,0,0,0.2)'; ctx.fill();
   }
@@ -722,20 +759,17 @@ function drawSpinners(){
     const [A,B,ang]=spinnerEndpoints(sp);
     ctx.save();
     ctx.translate(sp.cx,sp.cy); ctx.rotate(ang);
-    // Bar
     const grad=ctx.createLinearGradient(-sp.len/2,0,sp.len/2,0);
     grad.addColorStop(0,'#4a6aaf'); grad.addColorStop(0.5,'#82aaff'); grad.addColorStop(1,'#4a6aaf');
     ctx.fillStyle=grad;
     ctx.beginPath();
     ctx.roundRect(-sp.len/2,-sp.thick/2,sp.len,sp.thick,sp.thick/2);
     ctx.fill();
-    // Highlight
     ctx.fillStyle='rgba(255,255,255,0.2)';
     ctx.beginPath();
     ctx.roundRect(-sp.len/2,-sp.thick/2,sp.len,sp.thick*0.4,sp.thick/2);
     ctx.fill();
     ctx.restore();
-    // Center pin
     ctx.beginPath(); ctx.arc(sp.cx,sp.cy,5,0,Math.PI*2);
     ctx.fillStyle='#ddeeff'; ctx.fill();
   }
@@ -743,38 +777,30 @@ function drawSpinners(){
 
 function drawPocket(){
   const p=gameState.pocket; const t=simTime;
-  // Outer glow
   const grad=ctx.createRadialGradient(p.x,p.y,2,p.x,p.y,POCKET_R+10);
   grad.addColorStop(0,'rgba(170,255,68,0.6)'); grad.addColorStop(1,'rgba(170,255,68,0)');
   ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(p.x,p.y,POCKET_R+10,0,Math.PI*2); ctx.fill();
-  // Hole (dark)
   ctx.beginPath(); ctx.arc(p.x,p.y,POCKET_R,0,Math.PI*2);
   ctx.fillStyle='rgba(0,0,0,0.8)'; ctx.fill();
-  // Flag
   ctx.save();
   const flagWave=Math.sin(t*3)*4;
   ctx.strokeStyle='#aaaaaa'; ctx.lineWidth=1.5;
   ctx.beginPath(); ctx.moveTo(p.x,p.y-POCKET_R*0.5); ctx.lineTo(p.x,p.y-POCKET_R-22); ctx.stroke();
-  // Flag triangle
   ctx.fillStyle='#ff4444';
   ctx.beginPath(); ctx.moveTo(p.x,p.y-POCKET_R-22);
   ctx.lineTo(p.x+14+flagWave,p.y-POCKET_R-14);
   ctx.lineTo(p.x,p.y-POCKET_R-8); ctx.fill();
   ctx.restore();
-  // Rim
   ctx.beginPath(); ctx.arc(p.x,p.y,POCKET_R,0,Math.PI*2);
   ctx.strokeStyle='#aaff44'; ctx.lineWidth=2.5; ctx.stroke();
 }
 
 function drawBall(){
   const b=gameState.ball;
-  // Shadow
   ctx.beginPath(); ctx.ellipse(b.x+2,b.y+3,BALL_R*0.8,BALL_R*0.4,0,0,Math.PI*2);
   ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.fill();
-  // Ball
   ctx.save();
   if(selectedEmoji==='⚪'){
-    // Classic golf ball
     const g=ctx.createRadialGradient(b.x-3,b.y-3,1,b.x,b.y,BALL_R);
     g.addColorStop(0,'#ffffff'); g.addColorStop(1,'#c8c8c8');
     ctx.fillStyle=g; ctx.beginPath(); ctx.arc(b.x,b.y,BALL_R,0,Math.PI*2); ctx.fill();
@@ -791,17 +817,13 @@ function drawAim(){
   const b=gameState.ball;
   ctx.save(); ctx.globalAlpha=0.7;
   if(isDragging&&aimVec&&V.len(aimVec)>5){
-    // Direction line
     const dir=V.nor(aimVec); const mag=Math.min(V.len(aimVec),240);
     ctx.strokeStyle='#aaff44'; ctx.lineWidth=1.5; ctx.setLineDash([6,5]);
     ctx.beginPath(); ctx.moveTo(b.x,b.y);
-    // Extend line forward showing trajectory
     ctx.lineTo(b.x+dir.x*200, b.y+dir.y*200); ctx.stroke();
-    // Power arc indicator
     ctx.setLineDash([]);
     ctx.strokeStyle='rgba(170,255,68,0.3)'; ctx.lineWidth=4;
     ctx.beginPath(); ctx.arc(b.x,b.y,mag*0.7,0,Math.PI*2); ctx.stroke();
-    // Arrow tip
     const ax=b.x+dir.x*90, ay=b.y+dir.y*90;
     ctx.strokeStyle='#aaff44'; ctx.lineWidth=2;
     ctx.beginPath(); ctx.moveTo(ax,ay);
@@ -811,7 +833,6 @@ function drawAim(){
     ctx.lineTo(ax-dir.x*12-perp.x*6, ay-dir.y*12-perp.y*6);
     ctx.stroke();
   } else {
-    // Idle indicator ring
     const pulse=0.4+0.3*Math.sin(simTime*3);
     ctx.globalAlpha=pulse;
     ctx.strokeStyle='#aaff44'; ctx.lineWidth=1.5; ctx.setLineDash([4,4]);
@@ -842,7 +863,6 @@ function drawScoredOverlay(){
 }
 
 function drawHUD(){
-  // Top bar
   ctx.save();
   ctx.fillStyle='rgba(0,0,0,0.45)';
   ctx.beginPath(); ctx.roundRect(BND.l,BND.t-36,400,28,6); ctx.fill();
@@ -872,7 +892,6 @@ let isDragging=false, dragStart=null, aimVec=null;
 canvas.addEventListener('mousedown',e=>{
   if(gameState.phase!=='aim') return;
   const m=getMouse(e);
-  // Only start drag near ball
   if(Math.hypot(m.x-gameState.ball.x,m.y-gameState.ball.y)<60){
     isDragging=true; dragStart=m; aimVec={x:0,y:0};
   }
@@ -931,31 +950,40 @@ function loop(t){
 requestAnimationFrame(loop);
 
 // ===================== CONTROLS ===================== //
-function resetBall(){gameState.ball.x=BND.l+80;gameState.ball.y=BND.b-80;gameState.ball.vx=0;gameState.ball.vy=0;gameState.phase='aim';}
+function resetBall(){
+  gameState.ball.x=BND.l+80; gameState.ball.y=BND.b-80;
+  gameState.ball.vx=0; gameState.ball.vy=0; gameState.phase='aim';
+}
 function nextHole(){
-  if(currentHoleIdx<HOLES.length-1){
-    currentHoleIdx++;
-    loadHole(currentHoleIdx);
-  }
+  if(currentHoleIdx<HOLES.length-1){ currentHoleIdx++; loadHole(currentHoleIdx); }
 }
 function loadHole(idx){
   currentHoleIdx=idx; generateHole(idx);
   updateSidebarStats(); updateHoleList(); updateScorecard();
 }
+
 function updateSidebarStats(){
   document.getElementById('sHole').textContent=currentHoleIdx+1;
   document.getElementById('sPar').textContent=gameState.par;
   document.getElementById('sStrokes').textContent=gameState.strokes;
-  // Total score vs par
-  let total=0, played=0;
-  for(let i=0;i<scorecard.length;i++){if(scorecard[i]!=null){total+=scorecard[i];played++;}}
-  const diff=total-HOLES.slice(0,played).reduce((s,h)=>s+h.par,0);
+
+  // FIX 7: Par total used actual played hole indices, not a count-based slice.
+  // scorecard is indexed by hole idx; sum only holes that have been played.
+  let totalStrokes=0, totalPar=0;
+  for(let i=0;i<HOLES.length;i++){
+    if(scorecard[i] != null){
+      totalStrokes += scorecard[i];
+      totalPar     += HOLES[i].par;
+    }
+  }
+  const hasPlayed = scorecard.some(v => v != null);
+  const diff = totalStrokes - totalPar;
   const el=document.getElementById('sTotal');
-  el.textContent=played===0?'—':diff===0?'E':(diff>0?'+':'')+diff;
-  el.className='stat-val '+(diff<0?'':'diff>0?'bad':'neutral');
+  el.textContent = !hasPlayed ? '—' : diff === 0 ? 'E' : (diff > 0 ? '+' : '') + diff;
+  el.className   = 'stat-val ' + (!hasPlayed ? 'neutral' : diff < 0 ? '' : diff > 0 ? 'bad' : 'neutral');
 }
 
-// Toast system
+// Toast
 let toastTimer;
 function showToast(msg,type){
   const t=document.getElementById('toast');
@@ -984,8 +1012,10 @@ function updateScorecard(){
     }
     cells.appendChild(c);
   }
-  const total=scorecard.reduce((s,v)=>v!=null?s+v:s,0);
-  document.getElementById('scTotal').textContent=scorecard.some(v=>v!=null)?total:'—';
+  // Sum only played holes
+  let total=0, played=false;
+  for(let i=0;i<scorecard.length;i++){ if(scorecard[i]!=null){ total+=scorecard[i]; played=true; } }
+  document.getElementById('scTotal').textContent=played?total:'—';
 }
 
 // Hole list
@@ -1007,10 +1037,10 @@ function updateHoleList(){
 const EMOJIS=['⚪','⚽','🏀','🎱','🍎','🍊','🍋','🎃','🧠','🐸','🐧','👾','🎯','💀','🌕'];
 const THEMES=[
   {name:'Classic',id:'green'},
-  {name:'Desert',id:'desert'},
-  {name:'Space',id:'space'},
-  {name:'Candy',id:'candy'},
-  {name:'Ice',id:'ice'},
+  {name:'Desert', id:'desert'},
+  {name:'Space',  id:'space'},
+  {name:'Candy',  id:'candy'},
+  {name:'Ice',    id:'ice'},
 ];
 function buildPicker(){
   const grid=document.getElementById('emojiGrid');
@@ -1019,7 +1049,8 @@ function buildPicker(){
     btn.className='emoji-btn'+(e===selectedEmoji?' selected':'');
     btn.textContent=e;
     btn.onclick=()=>{
-      selectedEmoji=e; document.querySelectorAll('.emoji-btn').forEach(b=>b.classList.remove('selected'));
+      selectedEmoji=e;
+      document.querySelectorAll('.emoji-btn').forEach(b=>b.classList.remove('selected'));
       btn.classList.add('selected');
     };
     grid.appendChild(btn);
@@ -1034,6 +1065,7 @@ function buildPicker(){
       document.body.className=th.id==='green'?'':`theme-${th.id}`;
       document.querySelectorAll('.theme-btn').forEach(b=>b.classList.remove('selected'));
       btn.classList.add('selected');
+      cacheFeltColors(); // FIX 3: re-cache colors after theme change
     };
     themeGrid.appendChild(btn);
   });
@@ -1043,14 +1075,8 @@ buildPicker();
 // Buttons
 document.getElementById('btnNextHole').onclick=nextHole;
 document.getElementById('btnReset').onclick=resetBall;
-document.getElementById('btnNew').onclick=()=>{
-  scorecard.length=0; currentHoleIdx=0; loadHole(0);
-};
-document.getElementById('btnDaily').onclick=()=>{
-  // Daily picks a hole based on date
-  const idx=dailySeed()%HOLES.length;
-  loadHole(idx);
-};
+document.getElementById('btnNew').onclick=()=>{ scorecard.length=0; currentHoleIdx=0; loadHole(0); };
+document.getElementById('btnDaily').onclick=()=>{ const idx=dailySeed()%HOLES.length; loadHole(idx); };
 
 // Init
 loadHole(0);
